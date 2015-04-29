@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv='Content-type' content='text/html; charset=utf-8'>
+    <meta name='author' content='Daniele Strigaro'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Leaflet Example - ReactJS</title>
+    <script src="js/react/react-0.13.2.js"></script>
+    <script src="js/react/JSXTransformer-0.13.2.js"></script>
+    <link rel="stylesheet" href="leaflet/leaflet.css" />
+    <script src="leaflet/leaflet.js"></script>
+    <link rel="stylesheet" href="ratchet/css/ratchet.css" />
+    <script src="ratchet/js/ratchet.js"></script>
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="http://open.mapquestapi.com/sdk/leaflet/v1.s/mq-map.js?key=Fmjtd%7Cluu82q012q%2C70%3Do5-94y00f"></script>
+    <script src="http://open.mapquestapi.com/sdk/leaflet/v1.s/mq-routing.js?key=Fmjtd%7Cluu82q012q%2C70%3Do5-94y00f"></script>
+    <link href="Leaflet.markercluster/dist/MarkerCluster.css" rel="stylesheet" />
+    <link href="Leaflet.markercluster/dist/MarkerCluster.Default.css" rel="stylesheet" />
+    <script src="Leaflet.markercluster/dist/leaflet.markercluster-src.js"></script>
+    <style>
+body {
+    padding: 0;
+    margin: 0;
+}
+.leaflet-popup-content {
+  width:auto !important;
+}
+html, body, #app, #map {
+    width: 100%;
+    height: 100%;
+}
+    </style>
+  </head>
+  <body>
+
+    <header class="bar bar-nav">
+      <button class="btn pull-left">
+        This button not work
+      </button>
+      <button id='geo' class="btn pull-right">
+        Geolocate me
+      </button>
+      <button id='route' class="btn pull-right">
+        Routing
+      </button>
+      <button id='mark' class="btn pull-right">
+        Add marker
+      </button>
+      <h1  class="title">Leaflet Example - ReactJS (Ciao MAX)</h1>
+    </header>
+    <div class="content">
+      <div id='app'></div>
+    </div>
+
+    <script type="text/jsx">
+      var MapBox = React.createClass({
+        handleClick: function (e) {
+        	 	alert('app')
+        },
+        onMapClickRoute: '',
+        componentDidMount: function () {
+          var map = L.map('app').setView([52.05, 0], 4);
+          var mapbox = L.tileLayer('http://{s}.tiles.mapbox.com/v3/danistri.l2a22nem/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery Â© <a href="http://mapbox.com">Mapbox</a>',
+            maxZoom: 18
+          });
+          map.addLayer(mapbox);
+          marker = false;
+          function onLocationFound(e) {
+            if (marker == false) {
+              var radius = e.accuracy / 2;
+
+              marker = L.marker(e.latlng)
+                .bindPopup("You are within " + radius + " meters from this point").openPopup().addTo(map);
+
+              circle = L.circle(e.latlng, radius).addTo(map);
+            } else {
+              map.removeLayer(marker);
+              map.removeLayer(circle);
+              var radius = e.accuracy / 2;
+
+              marker = L.marker(e.latlng)
+                .bindPopup("You are within " + radius + " meters from this point").openPopup().addTo(map);
+
+              circle = L.circle(e.latlng, radius).addTo(map);
+            }
+          }
+
+          map.on('locationfound', onLocationFound);
+          geo = document.getElementById('geo');
+          geo.addEventListener('click', function () {
+            map.off('click', onMapClickRoute);
+            map.off('click', onMapClickAdd);
+            map.locate({setView: true, maxZoom: 16});
+          })
+          //add marker
+          function onMapClickAdd (e) {
+            L.marker(e.latlng)
+              .bindPopup("Ciao Max, you have added a marker").openPopup().addTo(map);
+          }
+          mark = document.getElementById('mark');
+          mark.addEventListener('click', function () {
+            map.off('click', onMapClickRoute);
+            map.on('click', onMapClickAdd);
+          })
+          //routing functions
+          q = 0
+          function onMapClickRoute(e) {
+            if (q>0){
+              map.removeLayer(MQroute);
+            }
+            var popup = L.popup();
+            popup
+              .setLatLng(e.latlng)
+              .setContent("You want to go here")
+              .openOn(map);
+            console.log('qui')
+            dir.route({
+              options:{
+                routeType:'pedestrian'
+              },
+              locations: [
+                { latLng: { lat: pos_lat, lng: pos_lon } },
+                { latLng: { lat: e.latlng.lat, lng: e.latlng.lng } }
+              ]
+            });
+            MQroute = MQ.routing.routeLayer({
+              directions: dir,
+              fitBounds: true
+            });
+            map.addLayer(MQroute);
+            q =+ 1;
+          }
+          dir = MQ.routing.directions();
+          route = document.getElementById('route');
+          route.addEventListener('click', function () {
+            alert('Choose where do you want to go. From your current position. (Type: pedestrian)')
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(function(position) {
+                alert('Click where do you want to go')
+                pos_lat = position.coords.latitude;
+                pos_lon = position.coords.longitude;
+                console.log('Start position: ' + pos_lat + ' , ' + pos_lon)
+                map.setView([pos_lat, pos_lon], 13);
+                popup = L.popup()
+                map.off('click', onMapClickAdd);
+                map.on('click', onMapClickRoute);
+              })
+              console.log('yes')
+            } else {
+              alert('You must enable the GPS')
+            }
+          })
+
+
+          $.ajax({
+            type: "POST",
+            url: "http://geomatic.disat.unimib.it/geoserver/nextdata/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=nextdata:icecores&maxFeatures=999&outputFormat=json",
+            dataType: 'json',
+            success: function (response) {
+              icecoresLayer = L.geoJson(response, {
+                pointToLayer:function(feature, latlng) {
+                  return L.circleMarker(latlng, {
+                    radius: 6,
+                    opacity: 1,
+                    fillOpacity:1,
+                    color: '#088DA5'});
+                },
+                onEachFeature:  function (feature, layer) {
+                  layer.bindPopup(
+                    "<table id='table'>"
+                       + "<tr>"
+                         + "<th>ID</th>"
+                         + "<td>" + feature.properties.ID + "</td>"
+                         + "<th>NAME</th>"
+                         + "<td>" + feature.properties.NAME + "</td>"
+                       + "</tr>"
+                       + "<tr>"
+                         + "<th>DEPTH</th>"
+                         + "<td>" + feature.properties.DEPTH + "</td>"
+                         + "<th>YEAR_FROM</th>"
+                         + "<td>" + feature.properties.YEAR_FROM + "</td>"
+                       + "</tr>"
+                       + "<tr>"
+                         + "<th>YEAR_TO</th>"
+                         + "<td>" + feature.properties.YEAR_TO + "</td>"
+                         + "<th>TEMPORAL_COVERAGE</th>"
+                         + "<td>" + feature.properties.TEMPORAL_COVERAGE + "</td>"
+                       + "</tr>"
+                       + "<tr>"
+                         + "<th>COORD_CLASS</th>"
+                         + "<td>" + feature.properties.COORD_CLASS + "</td>"
+                         + "<th>DRILL_YEAR</th>"
+                         + "<td>" + feature.properties.DRILL_YEAR + "</td>"
+                       + "</tr>"
+                       + "<tr>"
+                         + "<th>DRILL_SITE</th>"
+                         + "<td>" + feature.properties.DRILL_SITE + "</td>"
+                         + "<th>INVESTIGATOR</th>"
+                         + "<td>" + feature.properties.INVESTIGATOR + "</td>"
+                       + "</tr>"
+                       + "<tr>"
+                         + "<th>ORGANIZATION</th>"
+                         + "<td>" + feature.properties.ORGANIZATION + "</td>"
+                         + "<th>LICENSE</th>"
+                         + "<td>CC-BY-NC-ND</td>"
+                       + "</tr>"
+                  + "</table>"
+                );
+              }
+            });
+            markGroup = L.markerClusterGroup();
+            markGroup.addLayer(icecoresLayer);
+            map.addLayer(markGroup);
+          }
+        })
+        },
+        render: function () {
+        	 return (
+            <div id="map"></div>
+        	 )
+        }
+      });
+
+      React.render(<MapBox />, document.getElementById('app'));
+
+    </script>
+  </body>
+</html>
